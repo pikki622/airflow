@@ -57,10 +57,7 @@ def _run_dag_backfill(dags: list[DAG], args) -> None:
     args.end_date = args.end_date or args.start_date
     args.start_date = args.start_date or args.end_date
 
-    run_conf = None
-    if args.conf:
-        run_conf = json.loads(args.conf)
-
+    run_conf = json.loads(args.conf) if args.conf else None
     for dag in dags:
         if args.task_regex:
             dag = dag.partial_subset(
@@ -116,7 +113,7 @@ def _run_dag_backfill(dags: list[DAG], args) -> None:
                     disable_retry=args.disable_retry,
                 )
             except ValueError as vr:
-                print(str(vr))
+                print(vr)
                 sys.exit(1)
 
 
@@ -299,9 +296,7 @@ def dag_state(args, session: Session = NEW_SESSION) -> None:
         raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
     dr = session.scalar(select(DagRun).filter_by(dag_id=args.dag_id, execution_date=args.execution_date))
     out = dr.state if dr else None
-    conf_out = ""
-    if out and dr.conf:
-        conf_out = ", " + json.dumps(dr.conf)
+    conf_out = f", {json.dumps(dr.conf)}" if out and dr.conf else ""
     print(str(out) + conf_out)
 
 
@@ -398,9 +393,10 @@ def dag_details(args, session=NEW_SESSION):
 def dag_list_import_errors(args) -> None:
     """Displays dags with import errors on the command line."""
     dagbag = DagBag(process_subdir(args.subdir))
-    data = []
-    for filename, errors in dagbag.import_errors.items():
-        data.append({"filepath": filename, "error": errors})
+    data = [
+        {"filepath": filename, "error": errors}
+        for filename, errors in dagbag.import_errors.items()
+    ]
     AirflowConsole().print_as(
         data=data,
         output=args.output,
@@ -436,12 +432,11 @@ def dag_list_jobs(args, dag: DAG | None = None, session: Session = NEW_SESSION) 
     if dag:
         args.dag_id = dag.dag_id
     if args.dag_id:
-        dag = DagModel.get_dagmodel(args.dag_id, session=session)
+        if dag := DagModel.get_dagmodel(args.dag_id, session=session):
+            queries.append(Job.dag_id == args.dag_id)
 
-        if not dag:
+        else:
             raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
-        queries.append(Job.dag_id == args.dag_id)
-
     if args.state:
         queries.append(Job.state == args.state)
 
@@ -468,8 +463,8 @@ def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSI
     else:
         dag = DagModel.get_dagmodel(args.dag_id, session=session)
 
-        if not dag:
-            raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
+    if not dag:
+        raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
 
     state = args.state.lower() if args.state else None
     dag_runs = DagRun.find(
@@ -523,12 +518,12 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
 
         dot_graph = render_dag(dag, tis=tis)
         print()
-        if filename:
-            _save_dot_to_file(dot_graph, filename)
-        if imgcat:
-            _display_dot_via_imgcat(dot_graph)
-        if show_dagrun:
-            print(dot_graph.source)
+    if filename:
+        _save_dot_to_file(dot_graph, filename)
+    if imgcat:
+        _display_dot_via_imgcat(dot_graph)
+    if show_dagrun:
+        print(dot_graph.source)
 
 
 @cli_utils.action_cli

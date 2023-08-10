@@ -139,10 +139,15 @@ def pool_import_helper(filepath):
 def pool_export_helper(filepath):
     """Helps export all the pools to the json file."""
     api_client = get_current_api_client()
-    pool_dict = {}
     pools = api_client.get_pools()
-    for pool in pools:
-        pool_dict[pool[0]] = {"slots": pool[1], "description": pool[2], "include_deferred": pool[3]}
+    pool_dict = {
+        pool[0]: {
+            "slots": pool[1],
+            "description": pool[2],
+            "include_deferred": pool[3],
+        }
+        for pool in pools
+    }
     with open(filepath, "w") as poolfile:
         poolfile.write(json.dumps(pool_dict, sort_keys=True, indent=4))
     return pools

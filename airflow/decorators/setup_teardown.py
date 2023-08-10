@@ -47,9 +47,7 @@ def teardown_task(_func=None, *, on_failure_fail_dagrun: bool = False) -> Callab
         func.on_failure_fail_dagrun = on_failure_fail_dagrun  # type: ignore[attr-defined]
         return func
 
-    if _func is None:
-        return teardown
-    return teardown(_func)
+    return teardown if _func is None else teardown(_func)
 
 
 class ContextWrapper(list):

@@ -76,7 +76,7 @@ def add_pod_suffix(pod_name: str, rand_len: int = 8, max_len: int = 80) -> str:
     :max_len: maximum length of the pod name
     :meta private:
     """
-    suffix = "-" + rand_str(rand_len)
+    suffix = f"-{rand_str(rand_len)}"
     return pod_name[: max_len - len(suffix)].strip("-.") + suffix
 
 
@@ -96,7 +96,7 @@ def make_safe_label_value(string: str) -> str:
 
     if len(safe_label) > MAX_LABEL_LEN or string != safe_label:
         safe_hash = md5(string.encode()).hexdigest()[:9]
-        safe_label = safe_label[: MAX_LABEL_LEN - len(safe_hash) - 1] + "-" + safe_hash
+        safe_label = f"{safe_label[:MAX_LABEL_LEN - len(safe_hash) - 1]}-{safe_hash}"
 
     return safe_label
 
@@ -298,7 +298,7 @@ class PodGenerator:
             return base_meta
         if not base_meta and client_meta:
             return client_meta
-        elif client_meta and base_meta:
+        elif client_meta:
             client_meta.labels = merge_objects(base_meta.labels, client_meta.labels)
             client_meta.annotations = merge_objects(base_meta.annotations, client_meta.annotations)
             extend_object_field(base_meta, client_meta, "managed_fields")
@@ -324,7 +324,7 @@ class PodGenerator:
             return base_spec
         if not base_spec and client_spec:
             return client_spec
-        elif client_spec and base_spec:
+        elif client_spec:
             client_spec.containers = PodGenerator.reconcile_containers(
                 base_spec.containers, client_spec.containers
             )

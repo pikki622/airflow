@@ -215,7 +215,11 @@ class Job(Base, LoggingMixin):
                 heartbeat_callback(session)
                 self.log.debug("[heartbeat]")
         except OperationalError:
-            Stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
+            Stats.incr(
+                f"{convert_camel_to_snake(self.__class__.__name__)}_heartbeat_failure",
+                1,
+                1,
+            )
             self.log.exception("%s heartbeat got an exception", self.__class__.__name__)
             # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
             self.latest_heartbeat = previous_heartbeat
@@ -223,7 +227,7 @@ class Job(Base, LoggingMixin):
     @provide_session
     def prepare_for_execution(self, session: Session = NEW_SESSION):
         """Prepares the job for execution."""
-        Stats.incr(self.__class__.__name__.lower() + "_start", 1, 1)
+        Stats.incr(f"{self.__class__.__name__.lower()}_start", 1, 1)
         self.state = JobState.RUNNING
         self.start_date = timezone.utcnow()
         session.add(self)
@@ -236,7 +240,7 @@ class Job(Base, LoggingMixin):
         self.end_date = timezone.utcnow()
         session.merge(self)
         session.commit()
-        Stats.incr(self.__class__.__name__.lower() + "_end", 1, 1)
+        Stats.incr(f"{self.__class__.__name__.lower()}_end", 1, 1)
 
     @provide_session
     def most_recent_job(self, session: Session = NEW_SESSION) -> Job | None:

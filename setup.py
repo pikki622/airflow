@@ -123,8 +123,9 @@ PROVIDER_DEPENDENCIES = fill_provider_dependencies()
 def airflow_test_suite() -> unittest.TestSuite:
     """Test suite for Airflow tests."""
     test_loader = unittest.TestLoader()
-    test_suite = test_loader.discover(str(AIRFLOW_SOURCES_ROOT / "tests"), pattern="test_*.py")
-    return test_suite
+    return test_loader.discover(
+        str(AIRFLOW_SOURCES_ROOT / "tests"), pattern="test_*.py"
+    )
 
 
 class CleanCommand(Command):
@@ -232,10 +233,7 @@ def git_version() -> str:
         return ""
     if repo:
         sha = repo.head.commit.hexsha
-        if repo.is_dirty():
-            return f".dev0+{sha}.dirty"
-        # commit is clean
-        return f".release:{sha}"
+        return f".dev0+{sha}.dirty" if repo.is_dirty() else f".release:{sha}"
     return "no_git_version"
 
 
@@ -747,10 +745,11 @@ def sort_extras_dependencies() -> dict[str, list[str]]:
     Sort both: extras and list of dependencies to make it easier to analyse problems
     external packages will be first, then if providers are added they are added at the end of the lists.
     """
-    sorted_dependencies: dict[str, list[str]] = {}
     sorted_extra_ids = sorted(EXTRAS_DEPENDENCIES.keys())
-    for extra_id in sorted_extra_ids:
-        sorted_dependencies[extra_id] = sorted(EXTRAS_DEPENDENCIES[extra_id])
+    sorted_dependencies: dict[str, list[str]] = {
+        extra_id: sorted(EXTRAS_DEPENDENCIES[extra_id])
+        for extra_id in sorted_extra_ids
+    }
     return sorted_dependencies
 
 
@@ -779,8 +778,7 @@ def get_provider_package_name_from_package_id(package_id: str) -> str:
     if ">=" in package_id:
         package, version = package_id.split(">=")
         version_spec = f">={version}"
-        version_suffix = os.environ.get("VERSION_SUFFIX_FOR_PYPI")
-        if version_suffix:
+        if version_suffix := os.environ.get("VERSION_SUFFIX_FOR_PYPI"):
             version_spec += version_suffix
     else:
         package = package_id
@@ -872,7 +870,13 @@ def replace_extra_dependencies_with_provider_packages(extra: str, providers: lis
     :param extra: Name of the extra to add providers to
     :param providers: list of provider ids
     """
-    if extra in ["cncf.kubernetes", "kubernetes", "celery", "daskexecutor", "dask"]:
+    if extra in {
+        "cncf.kubernetes",
+        "kubernetes",
+        "celery",
+        "daskexecutor",
+        "dask",
+    }:
         EXTRAS_DEPENDENCIES[extra].extend(
             [get_provider_package_name_from_package_id(package_name) for package_name in providers]
         )

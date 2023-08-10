@@ -195,18 +195,19 @@ class StandaloneCommand:
             role = appbuilder.sm.find_role("Admin")
             assert role is not None
             password = "".join(
-                random.choice("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789") for i in range(16)
+                random.choice(
+                    "abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789"
+                )
+                for _ in range(16)
             )
             with open(password_path, "w") as file:
                 file.write(password)
             make_group_other_inaccessible(password_path)
             appbuilder.sm.add_user("admin", "Admin", "User", "admin@example.com", role, password)
             self.print_output("standalone", "Created admin user")
-        # If the user does exist and we know its password, read the password
-        elif user_exists and we_know_password:
+        elif we_know_password:
             with open(password_path) as file:
                 password = file.read().strip()
-        # Otherwise we don't know the password
         else:
             password = None
         # Store what we know about the user for printing later in startup
@@ -247,9 +248,7 @@ class StandaloneCommand:
         Used to tell if scheduler is alive.
         """
         recent = most_recent_job(job_runner_class.job_type)
-        if not recent:
-            return False
-        return recent.is_alive()
+        return False if not recent else recent.is_alive()
 
     def print_ready(self):
         """

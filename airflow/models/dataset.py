@@ -148,9 +148,10 @@ class DagScheduleDatasetReference(Base):
         return hash(self.__mapper__.primary_key)
 
     def __repr__(self):
-        args = []
-        for attr in [x.name for x in self.__mapper__.primary_key]:
-            args.append(f"{attr}={getattr(self, attr)!r}")
+        args = [
+            f"{attr}={getattr(self, attr)!r}"
+            for attr in [x.name for x in self.__mapper__.primary_key]
+        ]
         return f"{self.__class__.__name__}({', '.join(args)})"
 
 
@@ -196,9 +197,10 @@ class TaskOutletDatasetReference(Base):
         return hash(self.__mapper__.primary_key)
 
     def __repr__(self):
-        args = []
-        for attr in [x.name for x in self.__mapper__.primary_key]:
-            args.append(f"{attr}={getattr(self, attr)!r}")
+        args = [
+            f"{attr}={getattr(self, attr)!r}"
+            for attr in [x.name for x in self.__mapper__.primary_key]
+        ]
         return f"{self.__class__.__name__}({', '.join(args)})"
 
 
@@ -236,9 +238,10 @@ class DatasetDagRunQueue(Base):
         return hash(self.__mapper__.primary_key)
 
     def __repr__(self):
-        args = []
-        for attr in [x.name for x in self.__mapper__.primary_key]:
-            args.append(f"{attr}={getattr(self, attr)!r}")
+        args = [
+            f"{attr}={getattr(self, attr)!r}"
+            for attr in [x.name for x in self.__mapper__.primary_key]
+        ]
         return f"{self.__class__.__name__}({', '.join(args)})"
 
 
@@ -324,15 +327,16 @@ class DatasetEvent(Base):
         return self.dataset.uri
 
     def __repr__(self) -> str:
-        args = []
-        for attr in [
-            "id",
-            "dataset_id",
-            "extra",
-            "source_task_id",
-            "source_dag_id",
-            "source_run_id",
-            "source_map_index",
-        ]:
-            args.append(f"{attr}={getattr(self, attr)!r}")
+        args = [
+            f"{attr}={getattr(self, attr)!r}"
+            for attr in [
+                "id",
+                "dataset_id",
+                "extra",
+                "source_task_id",
+                "source_dag_id",
+                "source_run_id",
+                "source_map_index",
+            ]
+        ]
         return f"{self.__class__.__name__}({', '.join(args)})"

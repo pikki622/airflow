@@ -37,9 +37,7 @@ def get_airflow_health() -> dict[str, Any]:
     dag_processor_status: str | None = UNHEALTHY
 
     try:
-        latest_scheduler_job = SchedulerJobRunner.most_recent_job()
-
-        if latest_scheduler_job:
+        if latest_scheduler_job := SchedulerJobRunner.most_recent_job():
             latest_scheduler_heartbeat = latest_scheduler_job.latest_heartbeat.isoformat()
             if latest_scheduler_job.is_alive():
                 scheduler_status = HEALTHY
@@ -47,9 +45,7 @@ def get_airflow_health() -> dict[str, Any]:
         metadatabase_status = UNHEALTHY
 
     try:
-        latest_triggerer_job = TriggererJobRunner.most_recent_job()
-
-        if latest_triggerer_job:
+        if latest_triggerer_job := TriggererJobRunner.most_recent_job():
             latest_triggerer_heartbeat = latest_triggerer_job.latest_heartbeat.isoformat()
             if latest_triggerer_job.is_alive():
                 triggerer_status = HEALTHY
@@ -59,9 +55,7 @@ def get_airflow_health() -> dict[str, Any]:
         metadatabase_status = UNHEALTHY
 
     try:
-        latest_dag_processor_job = DagProcessorJobRunner.most_recent_job()
-
-        if latest_dag_processor_job:
+        if latest_dag_processor_job := DagProcessorJobRunner.most_recent_job():
             latest_dag_processor_heartbeat = latest_dag_processor_job.latest_heartbeat.isoformat()
             if latest_dag_processor_job.is_alive():
                 dag_processor_status = HEALTHY
@@ -70,7 +64,7 @@ def get_airflow_health() -> dict[str, Any]:
     except Exception:
         metadatabase_status = UNHEALTHY
 
-    airflow_health_status = {
+    return {
         "metadatabase": {"status": metadatabase_status},
         "scheduler": {
             "status": scheduler_status,
@@ -85,5 +79,3 @@ def get_airflow_health() -> dict[str, Any]:
             "latest_dag_processor_heartbeat": latest_dag_processor_heartbeat,
         },
     }
-
-    return airflow_health_status

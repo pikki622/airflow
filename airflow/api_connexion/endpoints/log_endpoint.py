@@ -68,11 +68,7 @@ def get_log(
     if metadata.get("download_logs") and metadata["download_logs"]:
         full_content = True
 
-    if full_content:
-        metadata["download_logs"] = True
-    else:
-        metadata["download_logs"] = False
-
+    metadata["download_logs"] = full_content
     task_log_reader = TaskLogReader()
 
     if not task_log_reader.supports_read:
@@ -93,8 +89,7 @@ def get_log(
         metadata["end_of_log"] = True
         raise NotFound(title="TaskInstance not found")
 
-    dag = get_airflow_app().dag_bag.get_dag(dag_id)
-    if dag:
+    if dag := get_airflow_app().dag_bag.get_dag(dag_id):
         try:
             ti.task = dag.get_task(ti.task_id)
         except TaskNotFound:

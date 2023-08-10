@@ -204,9 +204,7 @@ class DictOfListsExpandInput(NamedTuple):
 
 
 def _describe_type(value: Any) -> str:
-    if value is None:
-        return "None"
-    return type(value).__name__
+    return "None" if value is None else type(value).__name__
 
 
 class ListOfDictsExpandInput(NamedTuple):

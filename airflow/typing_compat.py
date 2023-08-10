@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module provides helper code to make type annotation within Airflow codebase easier."""
+
 from __future__ import annotations
 
 __all__ = [
@@ -30,12 +31,7 @@ __all__ = [
 import sys
 from typing import Protocol, TypedDict, runtime_checkable
 
-# Literal in 3.8 is limited to one single argument, not e.g. "Literal[1, 2]".
-if sys.version_info >= (3, 9):
-    from typing import Literal
-else:
-    from typing import Literal
-
+from typing import Literal
 if sys.version_info >= (3, 10):
     from typing import ParamSpec, TypeGuard
 else:

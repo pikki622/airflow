@@ -60,10 +60,10 @@ def get_dag(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 def get_dag_details(*, dag_id: str) -> APIResponse:
     """Get details of DAG."""
-    dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
-    if not dag:
+    if dag := get_airflow_app().dag_bag.get_dag(dag_id):
+        return dag_detail_schema.dump(dag)
+    else:
         raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
-    return dag_detail_schema.dump(dag)
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
@@ -116,10 +116,9 @@ def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session =
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
     if update_mask:
-        patch_body_ = {}
         if update_mask != ["is_paused"]:
             raise BadRequest(detail="Only `is_paused` field can be updated through the REST API")
-        patch_body_[update_mask[0]] = patch_body[update_mask[0]]
+        patch_body_ = {update_mask[0]: patch_body[update_mask[0]]}
         patch_body = patch_body_
     dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
     if not dag:
@@ -139,11 +138,10 @@ def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pat
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
     if update_mask:
-        patch_body_ = {}
         if update_mask != ["is_paused"]:
             raise BadRequest(detail="Only `is_paused` field can be updated through the REST API")
         update_mask = update_mask[0]
-        patch_body_[update_mask] = patch_body[update_mask]
+        patch_body_ = {update_mask: patch_body[update_mask]}
         patch_body = patch_body_
     if only_active:
         dags_query = select(DagModel).where(~DagModel.is_subdag, DagModel.is_active)

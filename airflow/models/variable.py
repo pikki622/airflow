@@ -68,18 +68,17 @@ class Variable(Base, LoggingMixin):
         """Get Airflow Variable from Metadata DB and decode it using the Fernet Key."""
         from cryptography.fernet import InvalidToken as InvalidFernetToken
 
-        if self._val is not None and self.is_encrypted:
-            try:
-                fernet = get_fernet()
-                return fernet.decrypt(bytes(self._val, "utf-8")).decode()
-            except InvalidFernetToken:
-                self.log.error("Can't decrypt _val for key=%s, invalid token or value", self.key)
-                return None
-            except Exception:
-                self.log.error("Can't decrypt _val for key=%s, FERNET_KEY configuration missing", self.key)
-                return None
-        else:
+        if self._val is None or not self.is_encrypted:
             return self._val
+        try:
+            fernet = get_fernet()
+            return fernet.decrypt(bytes(self._val, "utf-8")).decode()
+        except InvalidFernetToken:
+            self.log.error("Can't decrypt _val for key=%s, invalid token or value", self.key)
+            return None
+        except Exception:
+            self.log.error("Can't decrypt _val for key=%s, FERNET_KEY configuration missing", self.key)
+            return None
 
     def set_val(self, value):
         """Encode the specified value with Fernet Key and store it in Variables Table."""
@@ -109,14 +108,13 @@ class Variable(Base, LoggingMixin):
         :return: Mixed
         """
         obj = Variable.get(key, default_var=None, deserialize_json=deserialize_json)
-        if obj is None:
-            if default is not None:
-                Variable.set(key, default, description=description, serialize_json=deserialize_json)
-                return default
-            else:
-                raise ValueError("Default Value must be set")
-        else:
+        if obj is not None:
             return obj
+        if default is not None:
+            Variable.set(key, default, description=description, serialize_json=deserialize_json)
+            return default
+        else:
+            raise ValueError("Default Value must be set")
 
     @classmethod
     def get(
@@ -133,18 +131,17 @@ class Variable(Base, LoggingMixin):
         """
         var_val = Variable.get_variable_from_secrets(key=key)
         if var_val is None:
-            if default_var is not cls.__NO_DEFAULT_SENTINEL:
-                return default_var
-            else:
+            if default_var is cls.__NO_DEFAULT_SENTINEL:
                 raise KeyError(f"Variable {key} does not exist")
-        else:
-            if deserialize_json:
-                obj = json.loads(var_val)
-                mask_secret(obj, key)
-                return obj
             else:
-                mask_secret(var_val, key)
-                return var_val
+                return default_var
+        elif deserialize_json:
+            obj = json.loads(var_val)
+            mask_secret(obj, key)
+            return obj
+        else:
+            mask_secret(var_val, key)
+            return var_val
 
     @staticmethod
     @provide_session
@@ -167,11 +164,7 @@ class Variable(Base, LoggingMixin):
         """
         # check if the secret exists in the custom secrets' backend.
         Variable.check_for_write_conflict(key)
-        if serialize_json:
-            stored_value = json.dumps(value, indent=2)
-        else:
-            stored_value = str(value)
-
+        stored_value = json.dumps(value, indent=2) if serialize_json else str(value)
         Variable.delete(key, session=session)
         session.add(Variable(key=key, val=stored_value, description=description))
         session.flush()

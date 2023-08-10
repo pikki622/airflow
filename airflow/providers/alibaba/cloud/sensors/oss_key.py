@@ -75,13 +75,12 @@ class OSSKeySensor(BaseSensorOperator):
                 raise AirflowException("If key is a relative path from root, please provide a bucket_name")
             self.bucket_name = parsed_url.netloc
             self.bucket_key = parsed_url.path.lstrip("/")
-        else:
-            if parsed_url.scheme != "" or parsed_url.netloc != "":
-                raise AirflowException(
-                    "If bucket_name is provided, bucket_key"
-                    " should be relative path from root"
-                    " level, rather than a full oss:// url"
-                )
+        elif parsed_url.scheme != "" or parsed_url.netloc != "":
+            raise AirflowException(
+                "If bucket_name is provided, bucket_key"
+                " should be relative path from root"
+                " level, rather than a full oss:// url"
+            )
 
         self.log.info("Poking for key : oss://%s/%s", self.bucket_name, self.bucket_key)
         return self.get_hook.object_exists(key=self.bucket_key, bucket_name=self.bucket_name)

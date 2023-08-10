@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Example DAG demonstrating the usage of the BranchPythonOperator."""
+
 from __future__ import annotations
 
 import random
@@ -57,9 +58,7 @@ with DAG(
             task_id=option,
         )
 
-        empty_follow = EmptyOperator(
-            task_id="follow_" + option,
-        )
+        empty_follow = EmptyOperator(task_id=f"follow_{option}")
 
         # Label is optional here, but it can help identify more complex branches
         branching >> Label(option) >> t >> empty_follow >> join

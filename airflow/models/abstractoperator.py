@@ -149,10 +149,7 @@ class AbstractOperator(Templater, DAGNode):
     @property
     def dag_id(self) -> str:
         """Returns dag id if it has one or an adhoc + owner."""
-        dag = self.get_dag()
-        if dag:
-            return dag.dag_id
-        return f"adhoc_{self.owner}"
+        return dag.dag_id if (dag := self.get_dag()) else f"adhoc_{self.owner}"
 
     @property
     def node_id(self) -> str:
@@ -220,9 +217,7 @@ class AbstractOperator(Templater, DAGNode):
 
     def get_direct_relative_ids(self, upstream: bool = False) -> set[str]:
         """Get direct relative IDs to the current task, upstream or downstream."""
-        if upstream:
-            return self.upstream_task_ids
-        return self.downstream_task_ids
+        return self.upstream_task_ids if upstream else self.downstream_task_ids
 
     def get_flat_relative_ids(self, *, upstream: bool = False) -> set[str]:
         """Get a flat set of relative IDs, upstream or downstream.
@@ -255,10 +250,10 @@ class AbstractOperator(Templater, DAGNode):
 
     def get_flat_relatives(self, upstream: bool = False) -> Collection[Operator]:
         """Get a flat list of relatives, either upstream or downstream."""
-        dag = self.get_dag()
-        if not dag:
+        if dag := self.get_dag():
+            return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream=upstream)]
+        else:
             return set()
-        return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream=upstream)]
 
     def get_upstreams_follow_setups(self) -> Iterable[Operator]:
         """All upstreams and, for each upstream setup, its respective teardowns."""
@@ -266,7 +261,7 @@ class AbstractOperator(Templater, DAGNode):
             yield task
             if task.is_setup:
                 for t in task.downstream_list:
-                    if t.is_teardown and not t == self:
+                    if t.is_teardown and t != self:
                         yield t
 
     def get_upstreams_only_setups_and_teardowns(self) -> Iterable[Operator]:
@@ -290,7 +285,7 @@ class AbstractOperator(Templater, DAGNode):
             if has_no_teardowns or task.downstream_task_ids.intersection(downstream_teardown_ids):
                 yield task
                 for t in task.downstream_list:
-                    if t.is_teardown and not t == self:
+                    if t.is_teardown and t != self:
                         yield t
 
     def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
@@ -390,12 +385,13 @@ class AbstractOperator(Templater, DAGNode):
         """
         if self.weight_rule == WeightRule.ABSOLUTE:
             return self.priority_weight
-        elif self.weight_rule == WeightRule.DOWNSTREAM:
+        elif (
+            self.weight_rule == WeightRule.DOWNSTREAM
+            or self.weight_rule != WeightRule.UPSTREAM
+        ):
             upstream = False
-        elif self.weight_rule == WeightRule.UPSTREAM:
-            upstream = True
         else:
-            upstream = False
+            upstream = True
         dag = self.get_dag()
         if dag is None:
             return self.priority_weight
@@ -415,13 +411,11 @@ class AbstractOperator(Templater, DAGNode):
             raise AirflowException("Can't load operators")
         for ope in plugins_manager.operator_extra_links:
             if ope.operators and self.operator_class in ope.operators:
-                op_extra_links_from_plugin.update({ope.name: ope})
+                op_extra_links_from_plugin[ope.name] = ope
 
-        operator_extra_links_all = {link.name: link for link in self.operator_extra_links}
-        # Extra links defined in Plugins overrides operator links defined in operator
-        operator_extra_links_all.update(op_extra_links_from_plugin)
-
-        return operator_extra_links_all
+        return {
+            link.name: link for link in self.operator_extra_links
+        } | op_extra_links_from_plugin
 
     @cached_property
     def global_operator_extra_link_dict(self) -> dict[str, Any]:
@@ -451,8 +445,8 @@ class AbstractOperator(Templater, DAGNode):
         link: BaseOperatorLink | None = self.operator_extra_link_dict.get(link_name)
         if not link:
             link = self.global_operator_extra_link_dict.get(link_name)
-            if not link:
-                return None
+        if not link:
+            return None
 
         parameters = inspect.signature(link.get_link).parameters
         old_signature = all(name != "ti_key" for name, p in parameters.items() if p.kind != p.VAR_KEYWORD)
@@ -559,23 +553,22 @@ class AbstractOperator(Templater, DAGNode):
                 )
                 unmapped_ti.state = TaskInstanceState.SKIPPED
             else:
-                zero_index_ti_exists = exists_query(
+                if zero_index_ti_exists := exists_query(
                     TaskInstance.dag_id == self.dag_id,
                     TaskInstance.task_id == self.task_id,
                     TaskInstance.run_id == run_id,
                     TaskInstance.map_index == 0,
                     session=session,
-                )
-                if not zero_index_ti_exists:
+                ):
+                    self.log.debug("Deleting the original task instance: %s", unmapped_ti)
+                    session.delete(unmapped_ti)
+                else:
                     # Otherwise convert this into the first mapped index, and create
                     # TaskInstance for other indexes.
                     unmapped_ti.map_index = 0
                     self.log.debug("Updated in place to become %s", unmapped_ti)
                     all_expanded_tis.append(unmapped_ti)
                     session.flush()
-                else:
-                    self.log.debug("Deleting the original task instance: %s", unmapped_ti)
-                    session.delete(unmapped_ti)
                 state = unmapped_ti.state
 
         if total_length is None or total_length < 1:
@@ -681,9 +674,6 @@ class AbstractOperator(Templater, DAGNode):
                     self.task_id,
                     attr_name,
                 )
-                # We may still want to render custom classes which do not support __bool__
-                pass
-
             try:
                 rendered_content = self.render_template(
                     value,

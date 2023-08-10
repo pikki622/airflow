@@ -79,11 +79,13 @@ class FSHook(BaseHook):
     def test_connection(self):
         """Test File connection."""
         try:
-            p = self.get_path()
-            if not p:
+            if p := self.get_path():
+                return (
+                    (False, f"Path {p} does not exist.")
+                    if not Path(p).exists()
+                    else (True, f"Path {p} is existing.")
+                )
+            else:
                 return False, "File Path is undefined."
-            if not Path(p).exists():
-                return False, f"Path {p} does not exist."
-            return True, f"Path {p} is existing."
         except Exception as e:
             return False, str(e)

@@ -91,12 +91,11 @@ class GlueCrawlerHook(AwsBaseHook):
             self.update_tags(crawler_name, crawler_kwargs.pop("Tags")) if "Tags" in crawler_kwargs else False
         )
 
-        update_config = {
+        if update_config := {
             key: value
             for key, value in crawler_kwargs.items()
             if current_crawler.get(key, None) != crawler_kwargs.get(key)
-        }
-        if update_config:
+        }:
             self.log.info("Updating crawler: %s", crawler_name)
             self.glue_client.update_crawler(**crawler_kwargs)
             self.log.info("Updated configurations: %s", update_config)

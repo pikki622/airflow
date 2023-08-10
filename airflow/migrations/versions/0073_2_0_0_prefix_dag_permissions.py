@@ -47,7 +47,7 @@ def prefix_individual_dag_permissions(session):
         .filter(Action.name.in_(dag_perms))
         .join(Resource)
         .filter(Resource.name != "all_dags")
-        .filter(Resource.name.notlike(prefix + "%"))
+        .filter(Resource.name.notlike(f"{prefix}%"))
         .all()
     )
     resource_ids = {permission.resource.id for permission in perms}
@@ -64,7 +64,7 @@ def remove_prefix_in_individual_dag_permissions(session):
         .join(Action)
         .filter(Action.name.in_(dag_perms))
         .join(Resource)
-        .filter(Resource.name.like(prefix + "%"))
+        .filter(Resource.name.like(f"{prefix}%"))
         .all()
     )
     for permission in perms:
@@ -167,9 +167,7 @@ def migrate_to_new_dag_permissions(db):
     can_edit_action = get_or_create_action(db.session, "can_edit")
     update_permission_action(db.session, old_can_dag_edit_permissions, can_edit_action)
 
-    # Update existing permissions for `all_dags` resource to use `DAGs` resource.
-    all_dags_resource = get_resource_query(db.session, "all_dags").first()
-    if all_dags_resource:
+    if all_dags_resource := get_resource_query(db.session, "all_dags").first():
         old_all_dags_permission = get_permission_with_resource_query(db.session, all_dags_resource)
         dag_resource = get_or_create_dag_resource(db.session)
         update_permission_resource(db.session, old_all_dags_permission, dag_resource)
@@ -204,9 +202,9 @@ def undo_migrate_to_new_dag_permissions(session):
     can_dag_edit_action = get_or_create_action(session, "can_dag_edit")
     update_permission_action(session, new_can_edit_permissions, can_dag_edit_action)
 
-    # Update existing permissions for `DAGs` resource to use `all_dags` resource.
-    dag_resource = get_resource_query(session, permissions.RESOURCE_DAG).first()
-    if dag_resource:
+    if dag_resource := get_resource_query(
+        session, permissions.RESOURCE_DAG
+    ).first():
         new_dag_permission = get_permission_with_resource_query(session, dag_resource)
         old_all_dag_resource = get_or_create_all_dag_resource(session)
         update_permission_resource(session, new_dag_permission, old_all_dag_resource)

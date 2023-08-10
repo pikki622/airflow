@@ -126,8 +126,7 @@ class Param:
             jsonschema.validate(final_val, self.schema, format_checker=FormatChecker())
         except ValidationError as err:
             if err.schema.get("format") == "date-time":
-                rfc3339_value = self._warn_if_not_rfc3339_dt(final_val)
-                if rfc3339_value:
+                if rfc3339_value := self._warn_if_not_rfc3339_dt(final_val):
                     self.value = rfc3339_value
                     return rfc3339_value
             if suppress_exception:
@@ -139,7 +138,7 @@ class Param:
     def dump(self) -> dict:
         """Dump the Param as a dictionary."""
         out_dict = {self.CLASS_IDENTIFIER: f"{self.__module__}.{self.__class__.__name__}"}
-        out_dict.update(self.__dict__)
+        out_dict |= self.__dict__
         return out_dict
 
     @property
@@ -177,10 +176,7 @@ class ParamsDict(MutableMapping[str, Any]):
         params_dict: dict[str, Param] = {}
         dict_obj = dict_obj or {}
         for k, v in dict_obj.items():
-            if not isinstance(v, Param):
-                params_dict[k] = Param(v)
-            else:
-                params_dict[k] = v
+            params_dict[k] = Param(v) if not isinstance(v, Param) else v
         self.__dict = params_dict
         self.suppress_exception = suppress_exception
 
@@ -190,9 +186,7 @@ class ParamsDict(MutableMapping[str, Any]):
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, ParamsDict):
             return self.dump() == other.dump()
-        if isinstance(other, dict):
-            return self.dump() == other
-        return NotImplemented
+        return self.dump() == other if isinstance(other, dict) else NotImplemented
 
     def __copy__(self) -> ParamsDict:
         return ParamsDict(self.__dict, self.suppress_exception)

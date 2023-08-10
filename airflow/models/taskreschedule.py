@@ -122,10 +122,7 @@ class TaskReschedule(Base):
             TR.map_index == task_instance.map_index,
             TR.try_number == try_number,
         )
-        if descending:
-            return qry.order_by(desc(TR.id))
-        else:
-            return qry.order_by(asc(TR.id))
+        return qry.order_by(desc(TR.id)) if descending else qry.order_by(asc(TR.id))
 
     @staticmethod
     @provide_session

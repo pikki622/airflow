@@ -174,12 +174,14 @@ def all_subdag_tasks_query(
     confirmed_dates: Iterable[datetime],
 ):
     """Get *all* tasks of the sub dags."""
-    qry_sub_dag = (
+    return (
         select(TaskInstance)
-        .where(TaskInstance.dag_id.in_(sub_dag_run_ids), TaskInstance.execution_date.in_(confirmed_dates))
+        .where(
+            TaskInstance.dag_id.in_(sub_dag_run_ids),
+            TaskInstance.execution_date.in_(confirmed_dates),
+        )
         .where(or_(TaskInstance.state.is_(None), TaskInstance.state != state))
     )
-    return qry_sub_dag
 
 
 def get_all_dag_task_query(
@@ -300,23 +302,22 @@ def get_execution_dates(
     execution_date = timezone.coerce_datetime(execution_date)
     # determine date range of dag runs and tasks to consider
     end_date = latest_execution_date if future else execution_date
-    if dag.start_date:
-        start_date = dag.start_date
-    else:
-        start_date = execution_date
+    start_date = dag.start_date if dag.start_date else execution_date
     start_date = execution_date if not past else start_date
     if not dag.timetable.can_be_scheduled:
         # If the DAG never schedules, need to look at existing DagRun if the user wants future or
         # past runs.
         dag_runs = dag.get_dagruns_between(start_date=start_date, end_date=end_date)
-        dates = sorted({d.execution_date for d in dag_runs})
+        return sorted({d.execution_date for d in dag_runs})
     elif not dag.timetable.periodic:
-        dates = [start_date]
+        return [start_date]
     else:
-        dates = [
-            info.logical_date for info in dag.iter_dagrun_infos_between(start_date, end_date, align=False)
+        return [
+            info.logical_date
+            for info in dag.iter_dagrun_infos_between(
+                start_date, end_date, align=False
+            )
         ]
-    return dates
 
 
 @provide_session
@@ -338,15 +339,19 @@ def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASess
         # If the DAG never schedules, need to look at existing DagRun if the user wants future or
         # past runs.
         dag_runs = dag.get_dagruns_between(start_date=start_date, end_date=end_date, session=session)
-        run_ids = sorted({d.run_id for d in dag_runs})
+        return sorted({d.run_id for d in dag_runs})
     elif not dag.timetable.periodic:
-        run_ids = [run_id]
+        return [run_id]
     else:
         dates = [
             info.logical_date for info in dag.iter_dagrun_infos_between(start_date, end_date, align=False)
         ]
-        run_ids = [dr.run_id for dr in DagRun.find(dag_id=dag.dag_id, execution_date=dates, session=session)]
-    return run_ids
+        return [
+            dr.run_id
+            for dr in DagRun.find(
+                dag_id=dag.dag_id, execution_date=dates, session=session
+            )
+        ]
 
 
 def _set_dag_run_state(dag_id: str, run_id: str, state: DagRunState, session: SASession):
@@ -402,10 +407,10 @@ def set_dag_run_state_to_success(
     if execution_date:
         if not timezone.is_localized(execution_date):
             raise ValueError(f"Received non-localized date {execution_date}")
-        dag_run = dag.get_dagrun(execution_date=execution_date)
-        if not dag_run:
+        if dag_run := dag.get_dagrun(execution_date=execution_date):
+            run_id = dag_run.run_id
+        else:
             raise ValueError(f"DagRun with execution_date: {execution_date} not found")
-        run_id = dag_run.run_id
     if not run_id:
         raise ValueError(f"Invalid dag_run_id: {run_id}")
     # Mark the dag run to success.
@@ -455,11 +460,11 @@ def set_dag_run_state_to_failed(
     if execution_date:
         if not timezone.is_localized(execution_date):
             raise ValueError(f"Received non-localized date {execution_date}")
-        dag_run = dag.get_dagrun(execution_date=execution_date)
-        if not dag_run:
-            raise ValueError(f"DagRun with execution_date: {execution_date} not found")
-        run_id = dag_run.run_id
+        if dag_run := dag.get_dagrun(execution_date=execution_date):
+            run_id = dag_run.run_id
 
+        else:
+            raise ValueError(f"DagRun with execution_date: {execution_date} not found")
     if not run_id:
         raise ValueError(f"Invalid dag_run_id: {run_id}")
 
@@ -548,10 +553,10 @@ def __set_dag_run_state_to_running_or_queued(
 
         if not timezone.is_localized(execution_date):
             raise ValueError(f"Received non-localized date {execution_date}")
-        dag_run = dag.get_dagrun(execution_date=execution_date)
-        if not dag_run:
+        if dag_run := dag.get_dagrun(execution_date=execution_date):
+            run_id = dag_run.run_id
+        else:
             raise ValueError(f"DagRun with execution_date: {execution_date} not found")
-        run_id = dag_run.run_id
     if not run_id:
         raise ValueError(f"DagRun with run_id: {run_id} not found")
     # Mark the dag run to running.

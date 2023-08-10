@@ -40,9 +40,7 @@ def needs_expansion(task: AbstractOperator) -> TypeGuard[Operator]:
     """
     if isinstance(task, MappedOperator):
         return True
-    if task.get_closest_mapped_task_group() is not None:
-        return True
-    return False
+    return task.get_closest_mapped_task_group() is not None
 
 
 __all__ = ["Operator", "needs_expansion"]

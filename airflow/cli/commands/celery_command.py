@@ -96,7 +96,7 @@ def flower(args):
 def _serve_logs(skip_serve_logs: bool = False):
     """Starts serve_logs sub-process."""
     sub_proc = None
-    if skip_serve_logs is False:
+    if not skip_serve_logs:
         sub_proc = Process(target=serve_logs)
         sub_proc.start()
     yield
@@ -251,10 +251,7 @@ def stop_worker(args):
         pid_file_path = args.pid
     else:
         pid_file_path, _, _, _ = setup_locations(process=WORKER_PROCESS_NAME)
-    pid = read_pid_from_pidfile(pid_file_path)
-
-    # Send SIGTERM
-    if pid:
+    if pid := read_pid_from_pidfile(pid_file_path):
         worker_process = psutil.Process(pid)
         worker_process.terminate()
 

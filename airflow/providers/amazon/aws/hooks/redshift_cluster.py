@@ -71,14 +71,13 @@ class RedshiftHook(AwsBaseHook):
         :param params: Remaining AWS Create cluster API params.
         """
         try:
-            response = self.get_conn().create_cluster(
+            return self.get_conn().create_cluster(
                 ClusterIdentifier=cluster_identifier,
                 NodeType=node_type,
                 MasterUsername=master_username,
                 MasterUserPassword=master_user_password,
                 **params,
             )
-            return response
         except ClientError as e:
             raise e
 

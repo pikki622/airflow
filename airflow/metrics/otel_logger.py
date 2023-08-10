@@ -75,13 +75,10 @@ def _is_up_down_counter(name):
 
 
 def _generate_key_name(name: str, attributes: Attributes = None):
+    key = name
     if attributes:
-        key = name
         for item in attributes.items():
             key += f"_{item[0]}_{item[1]}"
-    else:
-        key = name
-
     return key
 
 
@@ -311,10 +308,9 @@ class MetricsMap:
         key = _generate_key_name(name, attributes)
         if key in self.map.keys():
             return self.map[key]
-        else:
-            new_counter = self._create_counter(name)
-            self.map[key] = new_counter
-            return new_counter
+        new_counter = self._create_counter(name)
+        self.map[key] = new_counter
+        return new_counter
 
     def del_counter(self, name: str, attributes: Attributes = None) -> None:
         """
