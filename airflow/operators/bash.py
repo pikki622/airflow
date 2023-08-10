@@ -177,10 +177,9 @@ class BashOperator(BaseOperator):
         env = self.env
         if env is None:
             env = system_env
-        else:
-            if self.append_env:
-                system_env.update(env)
-                env = system_env
+        elif self.append_env:
+            system_env |= env
+            env = system_env
 
         airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
         self.log.debug(

@@ -442,7 +442,7 @@ class BaseExecutor(LoggingMixin):
 
         Returns tuple (dag_id,task_id) retrieved from the command (replaced with None values if missing)
         """
-        if command[0:3] != ["airflow", "tasks", "run"]:
+        if command[:3] != ["airflow", "tasks", "run"]:
             raise ValueError('The command must start with ["airflow", "tasks", "run"].')
         if len(command) > 3 and "--help" not in command:
             dag_id: str | None = None

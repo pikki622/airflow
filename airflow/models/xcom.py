@@ -415,8 +415,7 @@ class BaseXCom(Base, LoggingMixin):
         else:
             raise RuntimeError("Should not happen?")
 
-        result = query.with_entities(BaseXCom.value).first()
-        if result:
+        if result := query.with_entities(BaseXCom.value).first():
             return BaseXCom.deserialize_value(result)
         return None
 
@@ -542,9 +541,7 @@ class BaseXCom(Base, LoggingMixin):
             query = query.filter(BaseXCom.run_id == run_id)
 
         query = query.order_by(DagRun.execution_date.desc(), BaseXCom.timestamp.desc())
-        if limit:
-            return query.limit(limit)
-        return query
+        return query.limit(limit) if limit else query
 
     @classmethod
     @provide_session
@@ -670,10 +667,7 @@ class BaseXCom(Base, LoggingMixin):
 
     @staticmethod
     def _deserialize_value(result: XCom, orm: bool) -> Any:
-        object_hook = None
-        if orm:
-            object_hook = XComDecoder.orm_object_hook
-
+        object_hook = XComDecoder.orm_object_hook if orm else None
         if result.value is None:
             return None
         if conf.getboolean("core", "enable_xcom_pickling"):
@@ -843,10 +837,11 @@ def _get_function_params(function) -> list[str]:
     :param function: The function to inspect
     """
     parameters = inspect.signature(function).parameters
-    bound_arguments = [
-        name for name, p in parameters.items() if p.kind not in (p.VAR_POSITIONAL, p.VAR_KEYWORD)
+    return [
+        name
+        for name, p in parameters.items()
+        if p.kind not in (p.VAR_POSITIONAL, p.VAR_KEYWORD)
     ]
-    return bound_arguments
 
 
 def resolve_xcom_backend() -> type[BaseXCom]:
@@ -864,12 +859,9 @@ def resolve_xcom_backend() -> type[BaseXCom]:
         )
     base_xcom_params = _get_function_params(BaseXCom.serialize_value)
     xcom_params = _get_function_params(clazz.serialize_value)
-    if not set(base_xcom_params) == set(xcom_params):
+    if set(base_xcom_params) != set(xcom_params):
         _patch_outdated_serializer(clazz=clazz, params=xcom_params)
     return clazz
 
 
-if TYPE_CHECKING:
-    XCom = BaseXCom  # Hack to avoid Mypy "Variable 'XCom' is not valid as a type".
-else:
-    XCom = resolve_xcom_backend()
+XCom = BaseXCom if TYPE_CHECKING else resolve_xcom_backend()

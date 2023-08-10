@@ -164,9 +164,7 @@ class ClassReferenceSchema(Schema):
     def _get_class_name(self, obj):
         if isinstance(obj, (MappedOperator, SerializedBaseOperator)):
             return obj._task_type
-        if isinstance(obj, type):
-            return obj.__name__
-        return type(obj).__name__
+        return obj.__name__ if isinstance(obj, type) else type(obj).__name__
 
 
 class JsonObjectField(fields.Field):
@@ -178,6 +176,4 @@ class JsonObjectField(fields.Field):
         return json.loads(value) if isinstance(value, str) else value
 
     def _deserialize(self, value, attr, data, **kwargs):
-        if isinstance(value, str):
-            return json.loads(value)
-        return value
+        return json.loads(value) if isinstance(value, str) else value

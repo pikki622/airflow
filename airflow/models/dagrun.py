@@ -310,7 +310,7 @@ class DagRun(Base, LoggingMixin):
         else:
             query = query.where(cls.state.in_((DagRunState.RUNNING, DagRunState.QUEUED)))
         query = query.group_by(cls.dag_id)
-        return {dag_id: count for dag_id, count in session.execute(query)}
+        return dict(session.execute(query))
 
     @classmethod
     def next_dagruns_to_examine(
@@ -475,16 +475,14 @@ class DagRun(Base, LoggingMixin):
         if state:
             if isinstance(state, str):
                 tis = tis.where(TI.state == state)
-            else:
-                # this is required to deal with NULL values
-                if None in state:
-                    if all(x is None for x in state):
-                        tis = tis.where(TI.state.is_(None))
-                    else:
-                        not_none_state = (s for s in state if s)
-                        tis = tis.where(or_(TI.state.in_(not_none_state), TI.state.is_(None)))
+            elif None in state:
+                if all(x is None for x in state):
+                    tis = tis.where(TI.state.is_(None))
                 else:
-                    tis = tis.where(TI.state.in_(state))
+                    not_none_state = (s for s in state if s)
+                    tis = tis.where(or_(TI.state.in_(not_none_state), TI.state.is_(None)))
+            else:
+                tis = tis.where(TI.state.in_(state))
 
         if self.dag and self.dag.partial:
             tis = tis.where(TI.task_id.in_(self.dag.task_ids))
@@ -700,7 +698,7 @@ class DagRun(Base, LoggingMixin):
         else:
             self.set_state(DagRunState.RUNNING)
 
-        if self._state == DagRunState.FAILED or self._state == DagRunState.SUCCESS:
+        if self._state in [DagRunState.FAILED, DagRunState.SUCCESS]:
             msg = (
                 "DagRun Finished: dag_id=%s, execution_date=%s, run_id=%s, "
                 "run_start_date=%s, run_end_date=%s, run_duration=%s, "
@@ -842,9 +840,7 @@ class DagRun(Base, LoggingMixin):
                 expanded_tis, _ = ti.task.expand_mapped_task(self.run_id, session=session)
             except NotMapped:  # Not a mapped task, nothing needed.
                 return None
-            if expanded_tis:
-                return expanded_tis
-            return ()
+            return expanded_tis if expanded_tis else ()
 
         # Check dependencies.
         expansion_happened = False
@@ -1161,12 +1157,7 @@ class DagRun(Base, LoggingMixin):
             except (NotMapped, NotFullyPopulated):
                 map_indexes = (-1,)
             else:
-                if count:
-                    map_indexes = range(count)
-                else:
-                    # Make sure to always create at least one ti; this will be
-                    # marked as REMOVED later at runtime.
-                    map_indexes = (-1,)
+                map_indexes = range(count) if count else (-1, )
             yield from task_creator(task, map_indexes)
 
     def _create_task_instances(
@@ -1238,10 +1229,9 @@ class DagRun(Base, LoggingMixin):
                 TI.run_id == self.run_id,
             )
         )
-        existing_indexes = {i for i in query}
+        existing_indexes = set(query)
 
-        removed_indexes = existing_indexes.difference(range(total_length))
-        if removed_indexes:
+        if removed_indexes := existing_indexes.difference(range(total_length)):
             session.execute(
                 update(TI)
                 .where(
@@ -1443,4 +1433,4 @@ class DagRunNote(Base):
         prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.dagrun_id} {self.run_id}"
         if self.map_index != -1:
             prefix += f" map_index={self.map_index}"
-        return prefix + ">"
+        return f"{prefix}>"

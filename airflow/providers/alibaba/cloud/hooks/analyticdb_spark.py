@@ -279,8 +279,6 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
             raise ValueError("Parameter sql is need when submit spark sql.")
 
         extra_conf: dict[str, str] = {}
-        formatted_conf = ""
-
         if driver_resource_spec:
             extra_conf["spark.driver.resourceSpec"] = driver_resource_spec
         if executor_resource_spec:
@@ -290,10 +288,10 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
         if name:
             extra_conf["spark.app.name"] = name
         if conf and AnalyticDBSparkHook._validate_extra_conf(conf):
-            extra_conf.update(conf)
-        for key, value in extra_conf.items():
-            formatted_conf += f"set {key} = {value};"
-
+            extra_conf |= conf
+        formatted_conf = "".join(
+            f"set {key} = {value};" for key, value in extra_conf.items()
+        )
         return (formatted_conf + sql).strip()
 
     @staticmethod
@@ -362,7 +360,7 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
         if auth_type != "AK":
             raise ValueError(f"Unsupported auth_type: {auth_type}")
 
-        default_region = extra_config.get("region", None)
-        if not default_region:
+        if default_region := extra_config.get("region", None):
+            return default_region
+        else:
             raise ValueError(f"No region is specified for connection: {self.adb_spark_conn}")
-        return default_region

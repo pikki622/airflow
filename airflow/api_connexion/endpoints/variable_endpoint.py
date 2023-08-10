@@ -57,10 +57,12 @@ def delete_variable(*, variable_key: str) -> Response:
 @provide_session
 def get_variable(*, variable_key: str, session: Session = NEW_SESSION) -> Response:
     """Get a variable by key."""
-    var = session.scalar(select(Variable).where(Variable.key == variable_key).limit(1))
-    if not var:
+    if var := session.scalar(
+        select(Variable).where(Variable.key == variable_key).limit(1)
+    ):
+        return variable_schema.dump(var)
+    else:
         raise NotFound("Variable not found")
-    return variable_schema.dump(var)
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])

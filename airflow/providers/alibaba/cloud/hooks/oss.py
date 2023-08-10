@@ -362,7 +362,7 @@ class OSSHook(BaseHook):
         if auth_type != "AK":
             raise Exception(f"Unsupported auth_type: {auth_type}")
 
-        default_region = extra_config.get("region", None)
-        if not default_region:
+        if default_region := extra_config.get("region", None):
+            return default_region
+        else:
             raise Exception(f"No region is specified for connection: {self.oss_conn_id}")
-        return default_region

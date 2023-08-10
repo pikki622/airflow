@@ -491,12 +491,13 @@ class DagFileProcessor(LoggingMixin):
                 session.add_all(sla_misses)
         session.commit()
 
-        slas: list[SlaMiss] = (
+        if slas := (
             session.query(SlaMiss)
-            .filter(SlaMiss.notification_sent == False, SlaMiss.dag_id == dag.dag_id)  # noqa
+            .filter(
+                SlaMiss.notification_sent == False, SlaMiss.dag_id == dag.dag_id
+            )  # noqa
             .all()
-        )
-        if slas:
+        ):
             sla_dates: list[datetime] = [sla.execution_date for sla in slas]
             fetched_tis: list[TI] = (
                 session.query(TI)
@@ -516,9 +517,13 @@ class DagFileProcessor(LoggingMixin):
                     session.delete(ti)
                     session.commit()
 
-            task_list = "\n".join(sla.task_id + " on " + sla.execution_date.isoformat() for sla in slas)
+            task_list = "\n".join(
+                f"{sla.task_id} on {sla.execution_date.isoformat()}"
+                for sla in slas
+            )
             blocking_task_list = "\n".join(
-                ti.task_id + " on " + ti.execution_date.isoformat() for ti in blocking_tis
+                f"{ti.task_id} on {ti.execution_date.isoformat()}"
+                for ti in blocking_tis
             )
             # Track whether email or any alert notification sent
             # We consider email or the alert callback as notifications
@@ -777,12 +782,9 @@ class DagFileProcessor(LoggingMixin):
             # Since handle_failure _really_ wants a task, we do our best effort to give it one
             from airflow.models.serialized_dag import SerializedDagModel
 
-            try:
-                model = session.get(SerializedDagModel, simple_ti.dag_id)
-                if model:
+            with suppress(exc.NoResultFound, TaskNotFound):
+                if model := session.get(SerializedDagModel, simple_ti.dag_id):
                     task = model.dag.get_task(simple_ti.task_id)
-            except (exc.NoResultFound, TaskNotFound):
-                pass
         if task:
             ti.refresh_from_task(task)
 

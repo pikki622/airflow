@@ -30,10 +30,7 @@ from airflow.utils.db import compare_server_default, compare_type
 def include_object(_, name, type_, *args):
     """Filter objects for autogenerating revisions."""
     # Ignore _anything_ to do with Celery, or FlaskSession's tables
-    if type_ == "table" and (name.startswith("celery_") or name == "session"):
-        return False
-    else:
-        return True
+    return type_ != "table" or not name.startswith("celery_") and name != "session"
 
 
 # Make sure everything is imported so that alembic can find it all

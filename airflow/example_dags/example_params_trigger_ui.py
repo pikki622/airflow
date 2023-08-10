@@ -66,11 +66,11 @@ with DAG(
     def select_languages(**kwargs) -> list[str]:
         ti: TaskInstance = kwargs["ti"]
         dag_run: DagRun = ti.dag_run
-        selected_languages = []
-        for lang in ["english", "german", "french"]:
-            if lang in dag_run.conf and dag_run.conf[lang]:
-                selected_languages.append(f"generate_{lang}_greeting")
-        return selected_languages
+        return [
+            f"generate_{lang}_greeting"
+            for lang in ["english", "german", "french"]
+            if lang in dag_run.conf and dag_run.conf[lang]
+        ]
 
     @task(task_id="generate_english_greeting")
     def generate_english_greeting(name: str) -> str:

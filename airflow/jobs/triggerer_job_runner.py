@@ -110,9 +110,7 @@ def configure_trigger_log_handler():
             return val
 
         val = handler.__class__.__dict__.get("trigger_send_end_marker", None)
-        if val is not None:
-            return val
-        return True
+        return val if val is not None else True
 
     def supports_triggerer(handler):
         return (

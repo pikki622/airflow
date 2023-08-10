@@ -43,10 +43,10 @@ from airflow.utils.airflow_flask_app import get_airflow_app
 def get_user(*, username: str) -> APIResponse:
     """Get a user."""
     ab_security_manager = get_airflow_app().appbuilder.sm
-    user = ab_security_manager.find_user(username=username)
-    if not user:
+    if user := ab_security_manager.find_user(username=username):
+        return user_collection_item_schema.dump(user)
+    else:
         raise NotFound(title="User not found", detail=f"The User with username `{username}` was not found")
-    return user_collection_item_schema.dump(user)
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_USER)])

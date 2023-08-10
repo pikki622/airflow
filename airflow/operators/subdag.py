@@ -101,7 +101,7 @@ class SubDagOperator(BaseSensorOperator):
         if not dag:
             raise AirflowException("Please pass in the `dag` param or call within a DAG context manager")
 
-        if dag.dag_id + "." + kwargs["task_id"] != self.subdag.dag_id:
+        if f"{dag.dag_id}." + kwargs["task_id"] != self.subdag.dag_id:
             raise AirflowException(
                 f"The subdag's dag_id should have the form '{{parent_dag_id}}.{{this_task_id}}'. "
                 f"Expected '{dag.dag_id}.{kwargs['task_id']}'; received '{self.subdag.dag_id}'."
@@ -109,8 +109,7 @@ class SubDagOperator(BaseSensorOperator):
 
     def _validate_pool(self, session):
         if self.pool:
-            conflicts = [t for t in self.subdag.tasks if t.pool == self.pool]
-            if conflicts:
+            if conflicts := [t for t in self.subdag.tasks if t.pool == self.pool]:
                 # only query for pool conflicts if one may exist
                 pool = session.query(Pool).filter(Pool.slots == 1).filter(Pool.pool == self.pool).first()
                 if pool and any(t.pool == self.pool for t in self.subdag.tasks):

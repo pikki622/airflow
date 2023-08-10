@@ -526,8 +526,9 @@ class DagFileProcessorManager(LoggingMixin):
         query = session.query(DagModel.dag_id, DagModel.fileloc, DagModel.last_parsed_time).filter(
             DagModel.is_active
         )
-        standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
-        if standalone_dag_processor:
+        if standalone_dag_processor := conf.getboolean(
+            "scheduler", "standalone_dag_processor"
+        ):
             query = query.filter(DagModel.processor_subdir == dag_directory)
         dags_parsed = query.all()
 
@@ -544,12 +545,11 @@ class DagFileProcessorManager(LoggingMixin):
                 to_deactivate.add(dag.dag_id)
 
         if to_deactivate:
-            deactivated = (
+            if deactivated := (
                 session.query(DagModel)
                 .filter(DagModel.dag_id.in_(to_deactivate))
                 .update({DagModel.is_active: False}, synchronize_session="fetch")
-            )
-            if deactivated:
+            ):
                 cls.logger().info("Deactivated %i DAGs which are no longer present in file.", deactivated)
 
             for dag_id in to_deactivate:
@@ -558,11 +558,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _run_parsing_loop(self):
         # In sync mode we want timeout=None -- wait forever until a message is received
-        if self._async_mode:
-            poll_time = 0.0
-        else:
-            poll_time = None
-
+        poll_time = 0.0 if self._async_mode else None
         self._refresh_dag_dir()
         self.prepare_file_path_queue()
         max_callbacks_per_loop = conf.getint("scheduler", "max_callbacks_per_loop")
@@ -683,10 +679,7 @@ class DagFileProcessorManager(LoggingMixin):
 
             if self._async_mode:
                 loop_duration = time.monotonic() - loop_start_time
-                if loop_duration < 1:
-                    poll_time = 1 - loop_duration
-                else:
-                    poll_time = 0.0
+                poll_time = 1 - loop_duration if loop_duration < 1 else 0.0
 
     @provide_session
     def _fetch_callbacks(self, max_callbacks: int, session: Session = NEW_SESSION):
@@ -861,19 +854,18 @@ class DagFileProcessorManager(LoggingMixin):
         # Sort by longest last runtime. (Can't sort None values in python3)
         rows = sorted(rows, key=lambda x: x[3] or 0.0)
 
-        formatted_rows = []
-        for file_path, pid, runtime, num_dags, num_errors, last_runtime, last_run in rows:
-            formatted_rows.append(
-                (
-                    file_path,
-                    pid,
-                    f"{runtime.total_seconds():.2f}s" if runtime else None,
-                    num_dags,
-                    num_errors,
-                    f"{last_runtime:.2f}s" if last_runtime else None,
-                    last_run.strftime("%Y-%m-%dT%H:%M:%S") if last_run else None,
-                )
+        formatted_rows = [
+            (
+                file_path,
+                pid,
+                f"{runtime.total_seconds():.2f}s" if runtime else None,
+                num_dags,
+                num_errors,
+                f"{last_runtime:.2f}s" if last_runtime else None,
+                last_run.strftime("%Y-%m-%dT%H:%M:%S") if last_run else None,
             )
+            for file_path, pid, runtime, num_dags, num_errors, last_runtime, last_run in rows
+        ]
         log_str = (
             "\n"
             + "=" * 80
@@ -1236,7 +1228,9 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _add_paths_to_queue(self, file_paths_to_enqueue: list[str], add_at_front: bool):
         """Adds stuff to the back or front of the file queue, unless it's already present."""
-        new_file_paths = list(p for p in file_paths_to_enqueue if p not in self._file_path_queue)
+        new_file_paths = [
+            p for p in file_paths_to_enqueue if p not in self._file_path_queue
+        ]
         if add_at_front:
             self._file_path_queue.extendleft(new_file_paths)
         else:
@@ -1247,12 +1241,14 @@ class DagFileProcessorManager(LoggingMixin):
         """:return: whether all file paths have been processed max_runs times."""
         if self._max_runs == -1:  # Unlimited runs.
             return False
-        for stat in self._file_stats.values():
-            if stat.run_count < self._max_runs:
-                return False
-        if self._num_run < self._max_runs:
-            return False
-        return True
+        return next(
+            (
+                False
+                for stat in self._file_stats.values()
+                if stat.run_count < self._max_runs
+            ),
+            self._num_run >= self._max_runs,
+        )
 
     def terminate(self):
         """Stops all running processors."""
@@ -1264,8 +1260,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def end(self):
         """Kill all child processes on exit since we don't want to leave them as orphaned."""
-        pids_to_kill = self.get_all_pids()
-        if pids_to_kill:
+        if pids_to_kill := self.get_all_pids():
             kill_child_processes_by_pids(pids_to_kill)
 
     def emit_metrics(self):

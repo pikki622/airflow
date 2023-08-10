@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow logging settings."""
+
 from __future__ import annotations
 
 import os
@@ -139,8 +140,9 @@ DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
     },
 }
 
-EXTRA_LOGGER_NAMES: str | None = conf.get("logging", "EXTRA_LOGGER_NAMES", fallback=None)
-if EXTRA_LOGGER_NAMES:
+if EXTRA_LOGGER_NAMES := conf.get(
+    "logging", "EXTRA_LOGGER_NAMES", fallback=None
+):
     new_loggers = {
         logger_name.strip(): {
             "handlers": ["console"],

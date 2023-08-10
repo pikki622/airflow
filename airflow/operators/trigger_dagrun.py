@@ -169,21 +169,20 @@ class TriggerDagRunOperator(BaseOperator):
             )
 
         except DagRunAlreadyExists as e:
-            if self.reset_dag_run:
-                self.log.info("Clearing %s on %s", self.trigger_dag_id, parsed_execution_date)
-
-                # Get target dag object and call clear()
-
-                dag_model = DagModel.get_current(self.trigger_dag_id)
-                if dag_model is None:
-                    raise DagNotFound(f"Dag id {self.trigger_dag_id} not found in DagModel")
-
-                dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
-                dag = dag_bag.get_dag(self.trigger_dag_id)
-                dag.clear(start_date=parsed_execution_date, end_date=parsed_execution_date)
-                dag_run = e.dag_run
-            else:
+            if not self.reset_dag_run:
                 raise e
+            self.log.info("Clearing %s on %s", self.trigger_dag_id, parsed_execution_date)
+
+            # Get target dag object and call clear()
+
+            dag_model = DagModel.get_current(self.trigger_dag_id)
+            if dag_model is None:
+                raise DagNotFound(f"Dag id {self.trigger_dag_id} not found in DagModel")
+
+            dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
+            dag = dag_bag.get_dag(self.trigger_dag_id)
+            dag.clear(start_date=parsed_execution_date, end_date=parsed_execution_date)
+            dag_run = e.dag_run
         if dag_run is None:
             raise RuntimeError("The dag_run should be set here!")
         # Store the execution date from the dag run (either created or found above) to

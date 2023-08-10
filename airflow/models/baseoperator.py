@@ -139,9 +139,7 @@ def coerce_timedelta(value: float | timedelta, *, key: str) -> timedelta:
 
 
 def coerce_resources(resources: dict[str, Any] | None) -> Resources | None:
-    if resources is None:
-        return None
-    return Resources(**resources)
+    return None if resources is None else Resources(**resources)
 
 
 def _get_parent_defaults(dag: DAG | None, task_group: TaskGroup | None) -> tuple[dict, ParamsDict]:
@@ -188,9 +186,7 @@ class _PartialDescriptor:
         def partial(**kwargs):
             raise TypeError("partial can only be called on Operator classes, not Tasks themselves")
 
-        if obj is not None:
-            return partial
-        return self.class_method.__get__(cls, cls)
+        return partial if obj is not None else self.class_method.__get__(cls, cls)
 
 
 _PARTIAL_DEFAULTS = {
@@ -323,7 +319,11 @@ def partial(
     }
 
     # Inject DAG-level default args into args provided to this function.
-    partial_kwargs.update((k, v) for k, v in dag_default_args.items() if partial_kwargs.get(k) is NOTSET)
+    partial_kwargs |= (
+        (k, v)
+        for k, v in dag_default_args.items()
+        if partial_kwargs.get(k) is NOTSET
+    )
 
     # Fill fields not provided by the user with default values.
     partial_kwargs = {k: _PARTIAL_DEFAULTS.get(k) if v is NOTSET else v for k, v in partial_kwargs.items()}
@@ -390,7 +390,7 @@ class BaseOperatorMeta(abc.ABCMeta):
             from airflow.models.dag import DagContext
             from airflow.utils.task_group import TaskGroupContext
 
-            if len(args) > 0:
+            if args:
                 raise AirflowException("Use keyword arguments when initializing operators")
 
             instantiated_from_mapped = kwargs.pop(

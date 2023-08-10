@@ -282,8 +282,7 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
     else:
         query = query.where(DagRun.dag_id.in_(readable_dag_ids))
 
-    states = data.get("states")
-    if states:
+    if states := data.get("states"):
         query = query.where(DagRun.state.in_(states))
 
     dag_runs, total_entries = _fetch_dag_runs(
@@ -355,8 +354,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
                 session=session,
             )
-            dag_run_note = post_body.get("note")
-            if dag_run_note:
+            if dag_run_note := post_body.get("note"):
                 current_user_id = get_auth_manager().get_user_id()
                 dag_run.note = (dag_run_note, current_user_id)
             return dagrun_schema.dump(dag_run)

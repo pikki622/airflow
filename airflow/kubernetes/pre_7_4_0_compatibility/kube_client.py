@@ -136,8 +136,7 @@ def get_kube_client(
     if not conf.getboolean("kubernetes_executor", "verify_ssl"):
         configuration.verify_ssl = False
 
-    ssl_ca_cert = conf.get("kubernetes_executor", "ssl_ca_cert")
-    if ssl_ca_cert:
+    if ssl_ca_cert := conf.get("kubernetes_executor", "ssl_ca_cert"):
         configuration.ssl_ca_cert = ssl_ca_cert
 
     api_client = client.ApiClient(configuration=configuration)

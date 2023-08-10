@@ -116,7 +116,7 @@ class RenderedTaskInstanceFields(Base):
         prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.task_id} {self.run_id}"
         if self.map_index != -1:
             prefix += f" map_index={self.map_index}"
-        return prefix + ">"
+        return f"{prefix}>"
 
     def _redact(self):
         from airflow.utils.log.secrets_masker import redact
@@ -137,16 +137,14 @@ class RenderedTaskInstanceFields(Base):
         :param session: SqlAlchemy Session
         :return: Rendered Templated TI field
         """
-        result = session.scalar(
+        if result := session.scalar(
             select(cls).where(
                 cls.dag_id == ti.dag_id,
                 cls.task_id == ti.task_id,
                 cls.run_id == ti.run_id,
                 cls.map_index == ti.map_index,
             )
-        )
-
-        if result:
+        ):
             rendered_fields = result.rendered_fields
             return rendered_fields
         else:

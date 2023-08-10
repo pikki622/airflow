@@ -200,7 +200,7 @@ class OperatorPartial:
         except AttributeError:
             operator_name = self.operator_class.__name__
 
-        op = MappedOperator(
+        return MappedOperator(
             operator_class=self.operator_class,
             expand_input=expand_input,
             partial_kwargs=partial_kwargs,
@@ -226,7 +226,6 @@ class OperatorPartial:
             # to BaseOperator.expand() contribute to operator arguments.
             expand_input_attr="expand_input",
         )
-        return op
 
 
 @attr.define(

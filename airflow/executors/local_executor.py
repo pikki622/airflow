@@ -103,8 +103,7 @@ class LocalWorkerBase(Process, LoggingMixin):
             return TaskInstanceState.FAILED
 
     def _execute_work_in_fork(self, command: CommandType) -> TaskInstanceState:
-        pid = os.fork()
-        if pid:
+        if pid := os.fork():
             # In parent, wait for the child
             pid, ret = os.waitpid(pid, 0)
             return TaskInstanceState.SUCCESS if ret == 0 else TaskInstanceState.FAILED

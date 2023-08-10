@@ -48,10 +48,7 @@ def on_task_instance_running(previous_state: TaskInstanceState, task_instance: T
 
     task = task_instance.task
 
-    dag = task.dag
-    dag_name = None
-    if dag:
-        dag_name = dag.dag_id
+    dag_name = dag.dag_id if (dag := task.dag) else None
     print(f"Current task name:{name} state:{state} start_date:{start_date}")
     print(f"Dag name:{dag_name} and current dag run status:{dagrun_status}")
 

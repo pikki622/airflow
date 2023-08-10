@@ -280,10 +280,7 @@ class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
                 # A DagRun timeout will cause tasks to be externally marked as skipped.
                 dagrun = ti.get_dagrun(session=session)
                 execution_time = (dagrun.end_date or timezone.utcnow()) - dagrun.start_date
-                if ti.task.dag is not None:
-                    dagrun_timeout = ti.task.dag.dagrun_timeout
-                else:
-                    dagrun_timeout = None
+                dagrun_timeout = None if ti.task.dag is None else ti.task.dag.dagrun_timeout
                 if dagrun_timeout and execution_time > dagrun_timeout:
                     self.log.warning("DagRun timed out after %s.", str(execution_time))
 

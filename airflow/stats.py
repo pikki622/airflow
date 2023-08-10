@@ -31,14 +31,14 @@ class _Stats(type):
     factory: Callable
     instance: StatsLogger | NoStatsLogger | None = None
 
-    def __getattr__(cls, name: str) -> str:
-        if not cls.instance:
+    def __getattr__(self, name: str) -> str:
+        if not self.instance:
             try:
-                cls.instance = cls.factory()
+                self.instance = self.factory()
             except (socket.gaierror, ImportError) as e:
                 log.error("Could not configure StatsClient: %s, using NoStatsLogger instead.", e)
-                cls.instance = NoStatsLogger()
-        return getattr(cls.instance, name)
+                self.instance = NoStatsLogger()
+        return getattr(self.instance, name)
 
     def __init__(cls, *args, **kwargs) -> None:
         super().__init__(cls)
@@ -64,12 +64,9 @@ class _Stats(type):
         """Get constant DataDog tags to add to all stats."""
         tags: list[str] = []
         tags_in_string = conf.get("metrics", "statsd_datadog_tags", fallback=None)
-        if tags_in_string is None or tags_in_string == "":
-            return tags
-        else:
-            for key_value in tags_in_string.split(","):
-                tags.append(key_value)
-            return tags
+        if tags_in_string is not None and tags_in_string != "":
+            tags.extend(iter(tags_in_string.split(",")))
+        return tags
 
 
 if TYPE_CHECKING:

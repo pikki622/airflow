@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Example DAG demonstrating the usage of the BashOperator."""
+
 from __future__ import annotations
 
 import datetime
@@ -50,7 +51,7 @@ with DAG(
 
     for i in range(3):
         task = BashOperator(
-            task_id="runme_" + str(i),
+            task_id=f"runme_{str(i)}",
             bash_command='echo "{{ task_instance_key_str }}" && sleep 1',
         )
         task >> run_this

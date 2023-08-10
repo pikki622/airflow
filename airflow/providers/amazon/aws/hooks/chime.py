@@ -62,7 +62,7 @@ class ChimeWebhookHook(HttpHook):
         token = conn.get_password()
         if token is None:
             raise AirflowException("Webhook token field is missing and is required.")
-        url = conn.schema + "://" + conn.host
+        url = f"{conn.schema}://{conn.host}"
         endpoint = url + token
         # Check to make sure the endpoint matches what Chime expects
         if not re.match(r"^[a-zA-Z0-9_-]+\?token=[a-zA-Z0-9_-]+$", token):

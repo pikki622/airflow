@@ -162,12 +162,11 @@ class BaseSessionFactory(LoggingMixin):
                 "See: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html",
                 self.region_name,
             )
-            if deferrable:
-                session = self.get_async_session()
-                self._apply_session_kwargs(session)
-                return session
-            else:
+            if not deferrable:
                 return boto3.session.Session(region_name=self.region_name)
+            session = self.get_async_session()
+            self._apply_session_kwargs(session)
+            return session
         elif not self.role_arn:
             if deferrable:
                 session = self.get_async_session()
@@ -316,10 +315,7 @@ class BaseSessionFactory(LoggingMixin):
             session.mount("https://", adapter)
             session.mount("http://", adapter)
 
-        idp_request_kwargs = {}
-        if "idp_request_kwargs" in saml_config:
-            idp_request_kwargs = saml_config["idp_request_kwargs"]
-
+        idp_request_kwargs = saml_config.get("idp_request_kwargs", {})
         idp_response = session.get(idp_url, auth=auth, **idp_request_kwargs)
         idp_response.raise_for_status()
 
@@ -351,8 +347,10 @@ class BaseSessionFactory(LoggingMixin):
         idp_response = self._get_idp_response(saml_config, auth=auth)
         # Assist with debugging. Note: contains sensitive info!
         xpath = saml_config["saml_response_xpath"]
-        log_idp_response = "log_idp_response" in saml_config and saml_config["log_idp_response"]
-        if log_idp_response:
+        if (
+            log_idp_response := "log_idp_response" in saml_config
+            and saml_config["log_idp_response"]
+        ):
             self.log.warning(
                 "The IDP response contains sensitive information, but log_idp_response is ON (%s).",
                 log_idp_response,
@@ -376,20 +374,18 @@ class BaseSessionFactory(LoggingMixin):
         client_creator = base_session.create_client
         federation = str(self.extra_config.get("assume_role_with_web_identity_federation"))
 
-        web_identity_token_loader = {
+        if web_identity_token_loader := {
             "file": self._get_file_token_loader,
             "google": self._get_google_identity_token_loader,
-        }.get(federation)
-
-        if not web_identity_token_loader:
+        }.get(federation):
+            return botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher(
+                client_creator=client_creator,
+                web_identity_token_loader=web_identity_token_loader(),
+                role_arn=self.role_arn,
+                extra_args=self.conn.assume_role_kwargs,
+            )
+        else:
             raise AirflowException(f"Unsupported federation: {federation}.")
-
-        return botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher(
-            client_creator=client_creator,
-            web_identity_token_loader=web_identity_token_loader(),
-            role_arn=self.role_arn,
-            extra_args=self.conn.assume_role_kwargs,
-        )
 
     def _get_file_token_loader(self):
         from botocore.credentials import FileWebIdentityTokenLoader
@@ -508,10 +504,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         """Given a function name, walk the stack and return the name of the class which called it last."""
         try:
             caller = self._find_class_name(target_function_name)
-            if caller == "BaseSensorOperator":
-                # If the result is a BaseSensorOperator, then look for whatever last called "poke".
-                return self._get_caller("poke")
-            return caller
+            return self._get_caller("poke") if caller == "BaseSensorOperator" else caller
         except Exception:
             # Under no condition should an error here ever cause an issue for the user.
             return "Unknown"
@@ -736,12 +729,11 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         """
         if "/" in role:
             return role
-        else:
-            session = self.get_session(region_name=region_name)
-            _client = session.client(
-                "iam", endpoint_url=self.conn_config.endpoint_url, config=self.config, verify=self.verify
-            )
-            return _client.get_role(RoleName=role)["Role"]["Arn"]
+        session = self.get_session(region_name=region_name)
+        _client = session.client(
+            "iam", endpoint_url=self.conn_config.endpoint_url, config=self.config, verify=self.verify
+        )
+        return _client.get_role(RoleName=role)["Role"]["Arn"]
 
     @staticmethod
     def retry(should_retry: Callable[[Exception], bool]):

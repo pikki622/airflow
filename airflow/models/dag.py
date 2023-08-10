@@ -191,12 +191,10 @@ def _get_model_data_interval(
 ) -> DataInterval | None:
     start = timezone.coerce_datetime(getattr(instance, start_field_name))
     end = timezone.coerce_datetime(getattr(instance, end_field_name))
-    if start is None:
-        if end is not None:
-            raise InconsistentDataInterval(instance, start_field_name, end_field_name)
-        return None
-    elif end is None:
+    if start is None and end is not None or start is not None and end is None:
         raise InconsistentDataInterval(instance, start_field_name, end_field_name)
+    elif start is None:
+        return None
     return DataInterval(start, end)
 
 
@@ -637,8 +635,7 @@ class DAG(LoggingMixin):
         self.tags = tags or []
         self._task_group = TaskGroup.create_root(self)
         self.validate_schedule_and_params()
-        wrong_links = dict(self.iter_invalid_owner_links())
-        if wrong_links:
+        if wrong_links := dict(self.iter_invalid_owner_links()):
             raise AirflowException(
                 "Wrong link format was used for the owner. Use a valid link \n"
                 f"Bad formatted links are: {wrong_links}"
@@ -739,10 +736,7 @@ class DAG(LoggingMixin):
         hash_components = [type(self)]
         for c in self._comps:
             # task_ids returns a list and lists can't be hashed
-            if c == "task_ids":
-                val = tuple(self.task_dict)
-            else:
-                val = getattr(self, c, None)
+            val = tuple(self.task_dict) if c == "task_ids" else getattr(self, c, None)
             try:
                 hash(val)
                 hash_components.append(val)
@@ -775,10 +769,10 @@ class DAG(LoggingMixin):
             permissions.DEPRECATED_ACTION_CAN_DAG_READ: permissions.ACTION_CAN_READ,
             permissions.DEPRECATED_ACTION_CAN_DAG_EDIT: permissions.ACTION_CAN_EDIT,
         }
-        updated_access_control = {}
-        for role, perms in access_control.items():
-            updated_access_control[role] = {new_perm_mapping.get(perm, perm) for perm in perms}
-
+        updated_access_control = {
+            role: {new_perm_mapping.get(perm, perm) for perm in perms}
+            for role, perms in access_control.items()
+        }
         if access_control != updated_access_control:
             warnings.warn(
                 "The 'can_dag_read' and 'can_dag_edit' permissions are deprecated. "
@@ -805,10 +799,7 @@ class DAG(LoggingMixin):
                 )
         message += " Please use `DAG.iter_dagrun_infos_between(..., align=False)` instead."
         warnings.warn(message, category=RemovedInAirflow3Warning, stacklevel=2)
-        if end_date is None:
-            coerced_end_date = timezone.utcnow()
-        else:
-            coerced_end_date = end_date
+        coerced_end_date = timezone.utcnow() if end_date is None else end_date
         it = self.iter_dagrun_infos_between(start_date, pendulum.instance(coerced_end_date), align=False)
         return [info.logical_date for info in it]
 
@@ -837,9 +828,7 @@ class DAG(LoggingMixin):
         )
         data_interval = self.infer_automated_data_interval(timezone.coerce_datetime(dttm))
         next_info = self.next_dagrun_info(data_interval, restricted=False)
-        if next_info is None:
-            return None
-        return next_info.data_interval.start
+        return None if next_info is None else next_info.data_interval.start
 
     def previous_schedule(self, dttm):
         from airflow.timetables.interval import _DataIntervalTimetable

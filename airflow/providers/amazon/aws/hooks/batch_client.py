@@ -486,20 +486,19 @@ class BatchClientHook(AwsBaseHook):
         # Try to get user-defined log configuration options
         log_options = [c.get("options", {}) for c in log_configs]
 
-        # cross stream names with options (i.e. attempts X nodes) to generate all log infos
-        result = []
-        for stream, option in it.product(stream_names, log_options):
-            result.append(
-                {
-                    "awslogs_stream_name": stream,
-                    # If the user did not specify anything, the default settings are:
-                    #   awslogs-group = /aws/batch/job
-                    #   awslogs-region = `same as AWS Batch Job region`
-                    "awslogs_group": option.get("awslogs-group", "/aws/batch/job"),
-                    "awslogs_region": option.get("awslogs-region", self.conn_region_name),
-                }
-            )
-        return result
+        return [
+            {
+                "awslogs_stream_name": stream,
+                # If the user did not specify anything, the default settings are:
+                #   awslogs-group = /aws/batch/job
+                #   awslogs-region = `same as AWS Batch Job region`
+                "awslogs_group": option.get("awslogs-group", "/aws/batch/job"),
+                "awslogs_region": option.get(
+                    "awslogs-region", self.conn_region_name
+                ),
+            }
+            for stream, option in it.product(stream_names, log_options)
+        ]
 
     @staticmethod
     def add_jitter(delay: int | float, width: int | float = 1, minima: int | float = 0) -> float:

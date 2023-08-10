@@ -129,7 +129,7 @@ class SkipMixin(LoggingMixin):
                 )
                 .one()
             )
-        elif execution_date and dag_run and execution_date != dag_run.execution_date:
+        elif execution_date and execution_date != dag_run.execution_date:
             raise ValueError(
                 "execution_date has a different value to  dag_run.execution_date -- please only pass dag_run"
             )
@@ -175,10 +175,11 @@ class SkipMixin(LoggingMixin):
             branch_task_id_set = {branch_task_ids}
         elif isinstance(branch_task_ids, Iterable):
             branch_task_id_set = set(branch_task_ids)
-            invalid_task_ids_type = {
-                (bti, type(bti).__name__) for bti in branch_task_ids if not isinstance(bti, str)
-            }
-            if invalid_task_ids_type:
+            if invalid_task_ids_type := {
+                (bti, type(bti).__name__)
+                for bti in branch_task_ids
+                if not isinstance(bti, str)
+            }:
                 raise AirflowException(
                     f"'branch_task_ids' expected all task IDs are strings. "
                     f"Invalid tasks found: {invalid_task_ids_type}."
@@ -203,16 +204,13 @@ class SkipMixin(LoggingMixin):
             assert dag
 
         valid_task_ids = set(dag.task_ids)
-        invalid_task_ids = branch_task_id_set - valid_task_ids
-        if invalid_task_ids:
+        if invalid_task_ids := branch_task_id_set - valid_task_ids:
             raise AirflowException(
                 "'branch_task_ids' must contain only valid task_ids. "
                 f"Invalid tasks found: {invalid_task_ids}."
             )
 
-        downstream_tasks = _ensure_tasks(task.downstream_list)
-
-        if downstream_tasks:
+        if downstream_tasks := _ensure_tasks(task.downstream_list):
             # For a branching workflow that looks like this, when "branch" does skip_all_except("task1"),
             # we intuitively expect both "task1" and "join" to execute even though strictly speaking,
             # "join" is also immediately downstream of "branch" and should have been skipped. Therefore,

@@ -746,7 +746,7 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
 
             if all(key.map_index == -1 for key in ti_keys):
                 headers = ["DAG ID", "Task ID", "Run ID", "Try number"]
-                sorted_ti_keys = map(lambda k: k[0:4], sorted_ti_keys)
+                sorted_ti_keys = map(lambda k: k[:4], sorted_ti_keys)
             else:
                 headers = ["DAG ID", "Task ID", "Run ID", "Map Index", "Try number"]
 
@@ -869,8 +869,9 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
             dagrun_end_date = pendulum.instance(self.bf_end_date)
         dagrun_infos = list(self.dag.iter_dagrun_infos_between(dagrun_start_date, dagrun_end_date))
         if self.run_backwards:
-            tasks_that_depend_on_past = [t.task_id for t in self.dag.task_dict.values() if t.depends_on_past]
-            if tasks_that_depend_on_past:
+            if tasks_that_depend_on_past := [
+                t.task_id for t in self.dag.task_dict.values() if t.depends_on_past
+            ]:
                 raise AirflowException(
                     f"You cannot backfill backwards because one or more "
                     f'tasks depend_on_past: {",".join(tasks_that_depend_on_past)}'
@@ -884,15 +885,13 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
             dagrun_infos = [DagRunInfo.interval(dagrun_start_date, dagrun_end_date)]
 
         dag_with_subdags_ids = [d.dag_id for d in self._get_dag_with_subdags()]
-        running_dagruns = DagRun.find(
+        if running_dagruns := DagRun.find(
             dag_id=dag_with_subdags_ids,
             execution_start_date=self.bf_start_date,
             execution_end_date=self.bf_end_date,
             no_backfills=True,
             state=DagRunState.RUNNING,
-        )
-
-        if running_dagruns:
+        ):
             for run in running_dagruns:
                 self.log.error(
                     "Backfill cannot be created for DagRun %s in %s, as there's already %s in a RUNNING "
@@ -943,8 +942,9 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
                 )
 
                 remaining_dates = ti_status.total_runs - len(ti_status.executed_dag_run_dates)
-                err = "".join(self._collect_errors(ti_status=ti_status, session=session))
-                if err:
+                if err := "".join(
+                    self._collect_errors(ti_status=ti_status, session=session)
+                ):
                     if not self.continue_on_failures or ti_status.deadlocked:
                         raise BackfillUnfinished(err, ti_status)
 

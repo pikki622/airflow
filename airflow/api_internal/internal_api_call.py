@@ -70,7 +70,7 @@ class InternalApiConfig:
         internal_api_endpoint = ""
         if use_internal_api:
             internal_api_url = conf.get("core", "internal_api_url")
-            internal_api_endpoint = internal_api_url + "/internal_api/v1/rpcapi"
+            internal_api_endpoint = f"{internal_api_url}/internal_api/v1/rpcapi"
             if not internal_api_endpoint.startswith("http://"):
                 raise AirflowConfigException("[core]internal_api_url must start with http://")
 

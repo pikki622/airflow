@@ -103,15 +103,7 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         #   with TaskGroup(...) as tg:
         #       t2 = task_2(task_1())
         #   start >> t2 >> end
-        if retval is not None:
-            return retval
-
-        # Otherwise return the task group as a whole, equivalent to
-        #   with TaskGroup(...) as tg:
-        #       task_1()
-        #       task_2()
-        #   start >> tg >> end
-        return task_group
+        return retval if retval is not None else task_group
 
     def override(self, **kwargs: Any) -> _TaskGroupFactory[FParams, FReturn]:
         # TODO: fixme when mypy gets compatible with new attrs
@@ -120,7 +112,7 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
     def partial(self, **kwargs: Any) -> _TaskGroupFactory[FParams, FReturn]:
         self._validate_arg_names("partial", kwargs)
         prevent_duplicates(self.partial_kwargs, kwargs, fail_reason="duplicate partial")
-        kwargs.update(self.partial_kwargs)
+        kwargs |= self.partial_kwargs
         # TODO: fixme when mypy gets compatible with new attrs
         return attr.evolve(self, partial_kwargs=kwargs)  # type: ignore[arg-type]
 
@@ -147,7 +139,8 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         # It's impossible to build a dict of stubs as keyword arguments if the
         # function uses * or ** wildcard arguments.
         function_has_vararg = any(
-            v.kind == inspect.Parameter.VAR_POSITIONAL or v.kind == inspect.Parameter.VAR_KEYWORD
+            v.kind
+            in [inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD]
             for v in self.function_signature.parameters.values()
         )
         if function_has_vararg:
